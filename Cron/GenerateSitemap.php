@@ -92,7 +92,7 @@ class GenerateSitemap
     public function execute() : void
     {
         // Collect settings
-        $domain = rtrim($this->configuration->getVueStorefrontUrl(), '/') . '/';
+        $domain = rtrim($this->configuration->getVueStorefrontUrl(), '/');
         $path = $this->getPubPath();
 
         // Create directory at Path if doesn't exists
