@@ -155,7 +155,7 @@ class GenerateSitemap
         if ($activeProducts->count() >= 1) {
             /** @var ProductInterface $product */
             foreach ($activeProducts->getItems() as $product) {
-                $productUrl = $this->generateProductSitemapUrl($product, $urlSuffix);
+                $productUrl = $this->generateProductSitemapUrl($product);
                 $this->sitemap->addItem(
                     $productUrl,
                     1.0,
