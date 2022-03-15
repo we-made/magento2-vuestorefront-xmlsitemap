@@ -17,10 +17,14 @@ use Vendic\VueStorefrontSitemap\Model\Configuration;
 use Vendic\VueStorefrontSitemap\Model\ProductCollection;
 use Vendic\VueStorefrontSitemap\Model\SitemapFactory;
 use Magento\Framework\Filesystem\Driver\File;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Store\Model\ScopeInterface;
 
 class GenerateSitemap
 {
     const SITEMAP_NAME = 'sitemap.xml';
+    const XML_PATH_PRODUCT_URL_SUFFIX = 'catalog/seo/product_url_suffix';
+    const XML_PATH_CATEGORY_URL_SUFFIX = 'catalog/seo/category_url_suffix';
 
     /**
      * @var DirectoryList
@@ -51,26 +55,44 @@ class GenerateSitemap
      */
     protected $fileDriver;
 
+    /**
+     * @var ScopeConfigInterface
+     */
+    protected $scopeConfig;
+
+    /**
+     * @var string
+     */
+    protected $productUrlSuffix;
+
+    /**
+     * @var string
+     */
+    protected $categoryUrlSuffix;
+
     public function __construct(
         CategoryCollection $categoryCollection,
         Configuration $configuration,
         ProductCollection $productCollection,
         DirectoryList $directoryList,
         SitemapFactory $sitemapFactory,
-        File $fileDriver
-    ) {
+        File $fileDriver,
+        ScopeConfigInterface $scopeConfig
+    )
+    {
         $this->directoryList = $directoryList;
         $this->sitemapFactory = $sitemapFactory;
         $this->productCollection = $productCollection;
         $this->configuration = $configuration;
         $this->categoryCollection = $categoryCollection;
-        $this->fileDriver = $fileDriver;        
+        $this->fileDriver = $fileDriver; 
+        $this->scopeConfig = $scopeConfig;       
     }
 
     public function execute() : void
     {
         // Collect settings
-        $domain = $this->configuration->getVueStorefrontUrl();
+        $domain = rtrim($this->configuration->getVueStorefrontUrl(), '/') . '/';
         $path = $this->getPubPath();
 
         // Create directory at Path if doesn't exists
@@ -114,13 +136,26 @@ class GenerateSitemap
         return $this->categoryCollection->get();
     }
 
+    /**
+     * @return string
+     */
+    protected function getProductUrlSuffix(): string
+    {
+        if (!$this->productUrlSuffix) {
+            $urlSuffix = $this->scopeConfig->getValue(self::XML_PATH_PRODUCT_URL_SUFFIX, ScopeInterface::SCOPE_STORE);
+            $this->productUrlSuffix = $urlSuffix ? $urlSuffix : '';
+        }
+        return $this->productUrlSuffix;
+    }
+
     protected function addProductsToSitemap(): void
     {
         $activeProducts = $this->getActiveProducts();
+
         if ($activeProducts->count() >= 1) {
             /** @var ProductInterface $product */
             foreach ($activeProducts->getItems() as $product) {
-                $productUrl = $this->generateProductSitemapUrl($product);
+                $productUrl = $this->generateProductSitemapUrl($product, $urlSuffix);
                 $this->sitemap->addItem(
                     $productUrl,
                     1.0,
@@ -129,6 +164,18 @@ class GenerateSitemap
                 );
             }
         }
+    }
+
+    /**
+     * @return string
+     */
+    protected function getCategoryUrlSuffix(): string
+    {
+        if (!$this->categoryUrlSuffix) {
+            $urlSuffix = $this->scopeConfig->getValue(self::XML_PATH_CATEGORY_URL_SUFFIX, ScopeInterface::SCOPE_STORE);
+            $this->categoryUrlSuffix = $urlSuffix ? $urlSuffix : '';
+        }
+        return $this->categoryUrlSuffix;
     }
 
     protected function addCategoriesToSitemap(): void
@@ -170,7 +217,7 @@ class GenerateSitemap
         } else {
             $url = '/' . $prefix . $product->getUrlKey();
         }
-        return $url;
+        return $url . $this->getProductUrlSuffix();
     }
 
     /**
@@ -192,6 +239,6 @@ class GenerateSitemap
             $url = $url . '-' . $category->getId();
         }
 
-        return $url;
+        return $url . $this->getCategoryUrlSuffix();
     }
 }
